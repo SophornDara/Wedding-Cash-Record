@@ -16,7 +16,7 @@ A modern desktop application for managing wedding guest lists and monetary gifts
 
 ## Demo
 
-![Wedding Manager Application](demo.png)
+![Wedding Manager Application](demo/demo.png)
 
 _Wedding Manager application showing the guest list with Khmer language support, including guest names, monetary gifts tracking, and summary statistics._
 
