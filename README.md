@@ -130,3 +130,9 @@ Open source - feel free to use and modify for your needs.
 
 Built for managing wedding guest gifts with Khmer language support.
 "
+
+## Activate sc
+
+```
+venv\Scripts\activate
+```
