@@ -1,6 +1,6 @@
 "# Wedding Manager / Wedding Cash Record
 
-ប្រព័ន្ធគ្រប់គ្រងការថវាយបន្ថែមប្រាក់ថ្វាយពិធីមង្គលការ
+ប្រព័ន្ធកត់ចំណងដៃ Skurt Skurt
 
 A modern desktop application for managing wedding guest lists and monetary gifts with full Khmer language support.
 
