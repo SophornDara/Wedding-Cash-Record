@@ -14,6 +14,12 @@ A modern desktop application for managing wedding guest lists and monetary gifts
 - 🎨 Modern UI with CustomTkinter
 - 💾 SQLite database for reliable data storage
 
+## Demo
+
+![Wedding Manager Application](demo.png)
+
+_Wedding Manager application showing the guest list with Khmer language support, including guest names, monetary gifts tracking, and summary statistics._
+
 ## Khmer Font Support
 
 The application automatically detects and uses available Khmer fonts on your system:
