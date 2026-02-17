@@ -3,21 +3,65 @@ import os
 import sys
 import pandas as pd
 import customtkinter as ctk
-from tkinter import messagebox, ttk
+from tkinter import font as tkfont, Toplevel
 from dotenv import load_dotenv
 
 # --- CONFIGURATION ---
 load_dotenv()
 DB_FILE = os.getenv("DB_NAME", "wedding_data.db")
 APP_TITLE = os.getenv("APP_TITLE", "Wedding Manager")
-FONT_NAME = os.getenv("FONT_NAME", "Khmer OS Siemreap")
 FONT_SIZE = int(os.getenv("FONT_SIZE", 12))
+
+# Font fallback for Khmer support
+def get_khmer_font():
+    """Try to find an available Khmer font on the system"""
+    try:
+        khmer_fonts = [
+            "Khmer OS Siemreap",
+            "Khmer OS Battambang", 
+            "Khmer OS",
+            "Khmer OS System",
+            "Khmer OS Content",
+            "Hanuman",
+            "Koulen"
+        ]
+        
+        # Create a temporary root to access font families
+        import tkinter as tk
+        temp_root = tk.Tk()
+        temp_root.withdraw()
+        available_fonts = tkfont.families(temp_root)
+        
+        # Check if the font from env exists
+        env_font = os.getenv("FONT_NAME", "Khmer OS Siemreap")
+        if env_font in available_fonts:
+            temp_root.destroy()
+            return env_font
+        
+        # Try to find any Khmer font
+        for font_name in khmer_fonts:
+            if font_name in available_fonts:
+                temp_root.destroy()
+                return font_name
+        
+        temp_root.destroy()
+        # Last resort - use a font that might work
+        return "Arial"
+    except:
+        # If anything fails, use the env font or default
+        return os.getenv("FONT_NAME", "Khmer OS Siemreap")
+
+FONT_NAME = get_khmer_font()
 
 # --- DATABASE LAYER ---
 class WeddingDB:
     def __init__(self):
         self.conn = sqlite3.connect(DB_FILE)
+        # Ensure proper UTF-8 encoding for Khmer text
+        self.conn.text_factory = str
         self.cursor = self.conn.cursor()
+        # Enable UTF-8 encoding
+        self.cursor.execute("PRAGMA encoding = 'UTF-8'")
         self.check_table()
 
     def check_table(self):
@@ -46,6 +90,53 @@ class WeddingDB:
         self.cursor.execute("SELECT COUNT(id), SUM(khr), SUM(usd) FROM guests")
         return self.cursor.fetchone()
 
+# --- CUSTOM MESSAGE DIALOGS WITH KHMER FONT SUPPORT ---
+class KhmerMessageBox:
+    """Custom message dialogs with Khmer font support"""
+    
+    @staticmethod
+    def show_message(parent, title, message, msg_type="info"):
+        dialog = Toplevel(parent)
+        dialog.title(title)
+        dialog.geometry("400x200")
+        dialog.resizable(False, False)
+        dialog.transient(parent)
+        dialog.grab_set()
+        
+        # Center the dialog
+        dialog.update_idletasks()
+        x = (dialog.winfo_screenwidth() // 2) - (400 // 2)
+        y = (dialog.winfo_screenheight() // 2) - (200 // 2)
+        dialog.geometry(f"400x200+{x}+{y}")
+        
+        # Message label with Khmer font
+        label = ctk.CTkLabel(
+            dialog, 
+            text=message,
+            font=(FONT_NAME, 14),
+            wraplength=350
+        )
+        label.pack(pady=30, padx=20)
+        
+        # OK button
+        btn_color = "#3498db" if msg_type == "info" else ("#e74c3c" if msg_type == "error" else "#f39c12")
+        ok_btn = ctk.CTkButton(
+            dialog,
+            text="យល់ព្រម (OK)",
+            font=(FONT_NAME, 12),
+            fg_color=btn_color,
+            width=120,
+            height=35,
+            command=dialog.destroy
+        )
+        ok_btn.pack(pady=10)
+        
+        # Bind Enter key to close
+        dialog.bind('<Return>', lambda e: dialog.destroy())
+        ok_btn.focus()
+        
+        parent.wait_window(dialog)
+
 # --- UI LAYER ---
 class WeddingApp(ctk.CTk):
     def __init__(self):
@@ -58,9 +149,12 @@ class WeddingApp(ctk.CTk):
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
-        # Fonts
+        # Fonts - Configure CustomTkinter default fonts
         self.khmer_font = (FONT_NAME, FONT_SIZE)
         self.header_font = (FONT_NAME, 24, "bold")
+        
+        # Set default font for CTk widgets
+        ctk.FontManager.load_font(FONT_NAME)
 
         # Layout Grid (Left: Sidebar, Right: Main)
         self.grid_columnconfigure(1, weight=1)
@@ -95,53 +189,114 @@ class WeddingApp(ctk.CTk):
         export_btn.pack(padx=20, pady=5, fill="x")
 
     def create_input(self, placeholder):
-        entry = ctk.CTkEntry(self.sidebar, placeholder_text=placeholder, font=self.khmer_font, height=40)
-        entry.pack(padx=20, pady=10, fill="x")
-        return entry
+        """Create a text input that handles Khmer text better"""
+        frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        frame.pack(padx=20, pady=5, fill="x")
+        
+        # Label for placeholder
+        label = ctk.CTkLabel(frame, text=placeholder, font=(FONT_NAME, 11), 
+                            text_color="gray60", anchor="w")
+        label.pack(fill="x")
+        
+        # Use CTkTextbox for better Unicode handling
+        textbox = ctk.CTkTextbox(frame, font=(FONT_NAME, FONT_SIZE), height=40, 
+                                 wrap="none", activate_scrollbars=False)
+        textbox.pack(fill="x", pady=(2, 5))
+        
+        # Bind Enter key to not add newline
+        textbox.bind("<Return>", lambda e: "break")
+        
+        return textbox
+    
+    def get_input_text(self, textbox):
+        """Get text from CTkTextbox, stripping whitespace"""
+        return textbox.get("1.0", "end-1c").strip()
+    
+    def clear_textbox(self, textbox):
+        """Clear text from CTkTextbox"""
+        textbox.delete("1.0", "end")
 
     def setup_main_area(self):
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.main_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
 
         # Summary Dashboard
-        self.stats_label = ctk.CTkLabel(self.main_frame, text="", font=(FONT_NAME, 18, "bold"))
+        self.stats_label = ctk.CTkLabel(
+            self.main_frame, 
+            text="", 
+            font=(FONT_NAME, 18, "bold")
+        )
         self.stats_label.pack(pady=10)
 
-        # --- THE FIX FOR "?? ??" FONT ISSUE ---
-        style = ttk.Style()
-        style.theme_use("clam")  # Crucial: 'clam' theme allows custom font rendering
+        # --- CUSTOM TABLE WITH KHMER FONT SUPPORT ---
+        # Header Frame
+        header_frame = ctk.CTkFrame(self.main_frame, fg_color="#e0e0e0", height=45)
+        header_frame.pack(fill="x", pady=(10, 0))
+        header_frame.pack_propagate(False)
         
-        style.configure("Treeview", 
-                        font=(FONT_NAME, 11), 
-                        rowheight=40,   # Taller rows for Khmer vowels
-                        background="white",
-                        foreground="black")
-        
-        style.configure("Treeview.Heading", 
-                        font=(FONT_NAME, 12, "bold"),
-                        background="#e0e0e0")
-
-        # Table
-        columns = ("ID", "Name", "KHR", "USD", "Address")
-        self.tree = ttk.Treeview(self.main_frame, columns=columns, show="headings")
-        
-        # Define Headings
+        # Column headers with Khmer text
         headers = ["ល.រ", "ឈ្មោះ", "ប្រាក់រៀល", "ប្រាក់ដុល្លារ", "អាសយដ្ឋាន"]
-        for col, title in zip(columns, headers):
-            self.tree.heading(col, text=title)
-            width = 60 if col == "ID" else 150
-            self.tree.column(col, width=width, anchor="center" if col in ["ID", "KHR", "USD"] else "w")
+        widths = [60, 200, 150, 150, 200]
+        
+        for i, (header, width) in enumerate(zip(headers, widths)):
+            label = ctk.CTkLabel(
+                header_frame, 
+                text=header, 
+                font=(FONT_NAME, 13, "bold"),
+                text_color="black",
+                width=width
+            )
+            label.pack(side="left", padx=5, pady=8)
+        
+        # Scrollable table body
+        self.table_frame = ctk.CTkScrollableFrame(
+            self.main_frame, 
+            fg_color="white",
+            scrollbar_button_color="#3498db"
+        )
+        self.table_frame.pack(fill="both", expand=True)
+        
+        # Store column widths for row creation
+        self.column_widths = widths
 
-        self.tree.pack(fill="both", expand=True)
+    def create_table_row(self, row_data, row_index):
+        """Create a single row in the table with proper Khmer font"""
+        bg_color = "#f8f9fa" if row_index % 2 == 0 else "white"
+        
+        row_frame = ctk.CTkFrame(self.table_frame, fg_color=bg_color, height=45)
+        row_frame.pack(fill="x", pady=1)
+        row_frame.pack_propagate(False)
+        
+        for i, (value, width) in enumerate(zip(row_data, self.column_widths)):
+            # Handle None values
+            text = str(value) if value is not None else ""
+            
+            label = ctk.CTkLabel(
+                row_frame,
+                text=text,
+                font=(FONT_NAME, 12),
+                text_color="black",
+                width=width,
+                anchor="center" if i in [0, 2, 3] else "w"
+            )
+            label.pack(side="left", padx=5, pady=8)
 
     def save_guest(self):
-        name = self.name_entry.get()
-        khr_str = self.khr_entry.get()
-        usd_str = self.usd_entry.get()
-        addr = self.addr_entry.get()
+        name = self.get_input_text(self.name_entry)
+        khr_str = self.get_input_text(self.khr_entry)
+        usd_str = self.get_input_text(self.usd_entry)
+        addr = self.get_input_text(self.addr_entry)
+        
+        # Debug: Print what we received
+        print(f"DEBUG - Name received: {repr(name)}")
 
         if not name:
-            messagebox.showwarning("Warning", "សូមបញ្ចូលឈ្មោះភ្ញៀវ! (Name required)")
+            KhmerMessageBox.show_message(
+                self, 
+                "ការព្រមាន / Warning", 
+                "សូមបញ្ចូលឈ្មោះភ្ញៀវ!\nPlease enter guest name!",
+                "warning"
+            )
             return
 
         # Validation: Convert empty strings to 0
@@ -149,7 +304,12 @@ class WeddingApp(ctk.CTk):
             khr = int(khr_str) if khr_str else 0
             usd = float(usd_str) if usd_str else 0.0
         except ValueError:
-            messagebox.showerror("Error", "សូមបញ្ចូលចំនួនទឹកប្រាក់ឲ្យបានត្រឹមត្រូវ! (Numbers only)")
+            KhmerMessageBox.show_message(
+                self,
+                "កំហុស / Error",
+                "សូមបញ្ចូលចំនួនទឹកប្រាក់ឲ្យបានត្រឹមត្រូវ!\nPlease enter valid numbers only!",
+                "error"
+            )
             return
 
         self.db.add_guest(name, khr, usd, addr)
@@ -157,23 +317,29 @@ class WeddingApp(ctk.CTk):
         self.refresh_data()
 
     def clear_inputs(self):
-        self.name_entry.delete(0, "end")
-        self.khr_entry.delete(0, "end")
-        self.usd_entry.delete(0, "end")
-        self.addr_entry.delete(0, "end")
+        self.clear_textbox(self.name_entry)
+        self.clear_textbox(self.khr_entry)
+        self.clear_textbox(self.usd_entry)
+        self.clear_textbox(self.addr_entry)
         self.name_entry.focus()
 
     def refresh_data(self):
-        # Clear Table
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        # Clear Table - remove all existing rows
+        for widget in self.table_frame.winfo_children():
+            widget.destroy()
         
         # Load Guests
         rows = self.db.fetch_all()
-        for row in rows:
+        for index, row in enumerate(rows):
             # Format numbers with commas (e.g. 10,000)
-            formatted_row = (row[0], row[1], f"{row[2]:,}", f"{row[3]:,.2f}", row[4])
-            self.tree.insert("", "end", values=formatted_row)
+            formatted_row = (
+                row[0],                          # ID
+                row[1],                          # Name (Khmer)
+                f"{row[2]:,}",                   # KHR with commas
+                f"{row[3]:,.2f}",                # USD with decimals
+                row[4] if row[4] else ""         # Address
+            )
+            self.create_table_row(formatted_row, index)
 
         # Update Stats
         count, total_khr, total_usd = self.db.fetch_summary()
@@ -185,10 +351,21 @@ class WeddingApp(ctk.CTk):
             conn = sqlite3.connect(DB_FILE)
             df = pd.read_sql_query("SELECT * FROM guests", conn)
             filename = "Wedding_List_Export.xlsx"
-            df.to_excel(filename, index=False)
-            messagebox.showinfo("Success", f"ទិន្នន័យត្រូវបានរក្សាទុកក្នុង \n{filename}")
+            df.to_excel(filename, index=False, engine='openpyxl')
+            conn.close()
+            KhmerMessageBox.show_message(
+                self,
+                "ជោគជ័យ / Success",
+                f"ទិន្នន័យត្រូវបានរក្សាទុកក្នុង\nData saved in:\n{filename}",
+                "info"
+            )
         except Exception as e:
-            messagebox.showerror("Error", f"Export failed: {e}")
+            KhmerMessageBox.show_message(
+                self,
+                "កំហុស / Error",
+                f"ការនាំចេញបានបរាជ័យ\nExport failed:\n{str(e)}",
+                "error"
+            )
 
 if __name__ == "__main__":
     app = WeddingApp()

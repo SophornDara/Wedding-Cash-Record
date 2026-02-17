@@ -1,4 +1,54 @@
+# Environment and Configuration
 .env
-Weeding_Report.xlsx
+.env.local
+.env.*.local
+
+# Database
+*.db
 weeding_data.db
+wedding_data.db
+wedding_vault.db
+
+# Excel exports
+*.xlsx
+Weeding_Report.xlsx
 weeding_values.xlsx
+Wedding_List_Export.xlsx
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+*.spec
+
+# Debug/Test files (optional - remove if you want to keep)
+debug_*.py
+check_database.py
+test_fonts.py
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# Logs
+*.log
+logs/
