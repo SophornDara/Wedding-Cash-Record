@@ -1,22 +1,27 @@
 import sqlite3
 import os
+import sys
 import pandas as pd
 import customtkinter as ctk
 from tkinter import messagebox, ttk
-from dotenv import load_dotenv # pip install python-dotenv
+from dotenv import load_dotenv
 
-# Load configurations
+# --- CONFIGURATION ---
 load_dotenv()
-DB_PATH = os.getenv("DB_NAME", "database.db")
-APP_TITLE = os.getenv("WEDDING_NAME", "Wedding Guest List")
-KHMER_FONT = (os.getenv("PRIMARY_FONT", "Khmer OS Siemreap"), 14)
-KHMER_FONT_BOLD = (os.getenv("PRIMARY_FONT", "Khmer OS Siemreap"), 16, "bold")
+DB_FILE = os.getenv("DB_NAME", "wedding_data.db")
+APP_TITLE = os.getenv("APP_TITLE", "Wedding Manager")
+FONT_NAME = os.getenv("FONT_NAME", "Khmer OS Siemreap")
+FONT_SIZE = int(os.getenv("FONT_SIZE", 12))
 
+# --- DATABASE LAYER ---
 class WeddingDB:
     def __init__(self):
-        self.conn = sqlite3.connect(DB_PATH)
+        self.conn = sqlite3.connect(DB_FILE)
         self.cursor = self.conn.cursor()
-        self.cursor.execute('''
+        self.check_table()
+
+    def check_table(self):
+        self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS guests (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL,
@@ -25,110 +30,165 @@ class WeddingDB:
                 address TEXT,
                 note TEXT
             )
-        ''')
+        """)
         self.conn.commit()
 
-    def add_guest(self, name, khr, usd, addr):
-        self.cursor.execute("INSERT INTO guests (name, khr, usd, address) VALUES (?, ?, ?, ?)",
-                           (name, khr, usd, addr))
+    def add_guest(self, name, khr, usd, address):
+        self.cursor.execute("INSERT INTO guests (name, khr, usd, address) VALUES (?, ?, ?, ?)", 
+                           (name, khr, usd, address))
         self.conn.commit()
 
-    def get_guests(self):
+    def fetch_all(self):
         self.cursor.execute("SELECT id, name, khr, usd, address FROM guests ORDER BY id DESC")
         return self.cursor.fetchall()
 
+    def fetch_summary(self):
+        self.cursor.execute("SELECT COUNT(id), SUM(khr), SUM(usd) FROM guests")
+        return self.cursor.fetchone()
+
+# --- UI LAYER ---
 class WeddingApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.db = WeddingDB()
+
+        # Window Setup
         self.title(APP_TITLE)
-        self.geometry("1100x700")
-        
-        # Configure Grid
+        self.geometry("1200x700")
+        ctk.set_appearance_mode("System")
+        ctk.set_default_color_theme("blue")
+
+        # Fonts
+        self.khmer_font = (FONT_NAME, FONT_SIZE)
+        self.header_font = (FONT_NAME, 24, "bold")
+
+        # Layout Grid (Left: Sidebar, Right: Main)
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # --- SIDEBAR (INPUT) ---
+        self.setup_sidebar()
+        self.setup_main_area()
+        self.refresh_data()
+
+    def setup_sidebar(self):
         self.sidebar = ctk.CTkFrame(self, width=320, corner_radius=0)
         self.sidebar.grid(row=0, column=0, sticky="nsew")
 
-        ctk.CTkLabel(self.sidebar, text="បញ្ចូលព័ត៌មានភ្ញៀវ", font=KHMER_FONT_BOLD).pack(pady=(30, 20))
+        # Title
+        ctk.CTkLabel(self.sidebar, text="បញ្ចូលព័ត៌មាន", font=self.header_font).pack(pady=(30, 20))
 
-        self.name_in = self.create_input("ឈ្មោះភ្ញៀវ (Name)")
-        self.khr_in = self.create_input("ទឹកប្រាក់ជារៀល (KHR)")
-        self.usd_in = self.create_input("ទឹកប្រាក់ជាដុល្លារ (USD)")
-        self.addr_in = self.create_input("អាសយដ្ឋាន (Address)")
+        # Inputs
+        self.name_entry = self.create_input("ឈ្មោះភ្ញៀវ (Name)")
+        self.khr_entry = self.create_input("ប្រាក់រៀល (KHR)")
+        self.usd_entry = self.create_input("ប្រាក់ដុល្លារ (USD)")
+        self.addr_entry = self.create_input("អាសយដ្ឋាន (Address)")
 
-        self.save_btn = ctk.CTkButton(self.sidebar, text="រក្សាទុក (Save)", font=KHMER_FONT, 
-                                     fg_color="#1a73e8", height=45, command=self.save)
-        self.save_btn.pack(fill="x", padx=20, pady=20)
+        # Buttons
+        save_btn = ctk.CTkButton(self.sidebar, text="រក្សាទុក (Save)", font=self.khmer_font, 
+                                 height=45, fg_color="#2ecc71", hover_color="#27ae60", 
+                                 command=self.save_guest)
+        save_btn.pack(padx=20, pady=(20, 10), fill="x")
 
-        self.export_btn = ctk.CTkButton(self.sidebar, text="ទាញយកជា Excel", font=KHMER_FONT,
-                                       fg_color="#1e7e34", height=40, command=self.export)
-        self.export_btn.pack(fill="x", padx=20, pady=5)
-
-        # --- MAIN AREA ---
-        self.main_view = ctk.CTkFrame(self, fg_color="transparent")
-        self.main_view.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
-
-        # Summary Header
-        self.summary_card = ctk.CTkFrame(self.main_view, height=100)
-        self.summary_card.pack(fill="x", pady=(0, 20))
-        self.stats_text = ctk.CTkLabel(self.summary_card, text="", font=KHMER_FONT_BOLD)
-        self.stats_text.pack(expand=True)
-
-        # Table with Khmer Support
-        self.style = ttk.Style()
-        self.style.configure("Treeview", font=("Khmer OS Siemreap", 11), rowheight=35)
-        self.style.configure("Treeview.Heading", font=("Khmer OS Siemreap", 12, "bold"))
-
-        self.tree = ttk.Treeview(self.main_view, columns=("ID", "Name", "KHR", "USD", "Address"), show='headings')
-        headings = {"ID": "ល.រ", "Name": "ឈ្មោះ", "KHR": "ប្រាក់រៀល", "USD": "ប្រាក់ដុល្លារ", "Address": "អាសយដ្ឋាន"}
-        for col, text in headings.items():
-            self.tree.heading(col, text=text)
-            self.tree.column(col, width=120 if "ID" not in col else 50)
-        
-        self.tree.pack(fill="both", expand=True)
-        self.refresh()
+        export_btn = ctk.CTkButton(self.sidebar, text="ទាញយក Excel", font=self.khmer_font, 
+                                   height=40, fg_color="#3498db", hover_color="#2980b9", 
+                                   command=self.export_excel)
+        export_btn.pack(padx=20, pady=5, fill="x")
 
     def create_input(self, placeholder):
-        entry = ctk.CTkEntry(self.sidebar, placeholder_text=placeholder, font=KHMER_FONT, height=40)
-        entry.pack(fill="x", padx=20, pady=10)
+        entry = ctk.CTkEntry(self.sidebar, placeholder_text=placeholder, font=self.khmer_font, height=40)
+        entry.pack(padx=20, pady=10, fill="x")
         return entry
 
-    def save(self):
-        try:
-            name = self.name_in.get()
-            khr = int(self.khr_in.get() or 0)
-            usd = float(self.usd_in.get() or 0)
-            addr = self.addr_in.get()
+    def setup_main_area(self):
+        self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.main_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
 
-            if not name: 
-                messagebox.showwarning("បញ្ជាក់", "សូមបញ្ចូលឈ្មោះភ្ញៀវ")
-                return
+        # Summary Dashboard
+        self.stats_label = ctk.CTkLabel(self.main_frame, text="", font=(FONT_NAME, 18, "bold"))
+        self.stats_label.pack(pady=10)
 
-            self.db.add_guest(name, khr, usd, addr)
-            self.refresh()
-            self.clear()
-        except ValueError:
-            messagebox.showerror("កំហុស", "សូមពិនិត្យមើលចំនួនទឹកប្រាក់")
-
-    def refresh(self):
-        for i in self.tree.get_children(): self.tree.delete(i)
-        for row in self.db.get_guests(): self.tree.insert("", "end", values=row)
+        # --- THE FIX FOR "?? ??" FONT ISSUE ---
+        style = ttk.Style()
+        style.theme_use("clam")  # Crucial: 'clam' theme allows custom font rendering
         
-        # Calculate Totals
-        self.db.cursor.execute("SELECT COUNT(id), SUM(khr), SUM(usd) FROM guests")
-        c, k, u = self.db.cursor.fetchone()
-        self.stats_text.configure(text=f"ភ្ញៀវសរុប: {c or 0} នាក់  |  សរុបប្រាក់រៀល: {k or 0:,.0f} ៛  |  សរុបប្រាក់ដុល្លារ: ${u or 0:,.2f}")
+        style.configure("Treeview", 
+                        font=(FONT_NAME, 11), 
+                        rowheight=40,   # Taller rows for Khmer vowels
+                        background="white",
+                        foreground="black")
+        
+        style.configure("Treeview.Heading", 
+                        font=(FONT_NAME, 12, "bold"),
+                        background="#e0e0e0")
 
-    def clear(self):
-        for e in [self.name_in, self.khr_in, self.usd_in, self.addr_in]: e.delete(0, 'end')
+        # Table
+        columns = ("ID", "Name", "KHR", "USD", "Address")
+        self.tree = ttk.Treeview(self.main_frame, columns=columns, show="headings")
+        
+        # Define Headings
+        headers = ["ល.រ", "ឈ្មោះ", "ប្រាក់រៀល", "ប្រាក់ដុល្លារ", "អាសយដ្ឋាន"]
+        for col, title in zip(columns, headers):
+            self.tree.heading(col, text=title)
+            width = 60 if col == "ID" else 150
+            self.tree.column(col, width=width, anchor="center" if col in ["ID", "KHR", "USD"] else "w")
 
-    def export(self):
-        df = pd.read_sql_query("SELECT * FROM guests", sqlite3.connect(DB_PATH))
-        df.to_excel("របាយការណ៍អាពាហ៍ពិពាហ៍.xlsx", index=False)
-        messagebox.showinfo("ជោគជ័យ", "ទាញយកទិន្នន័យបានជោគជ័យ!")
+        self.tree.pack(fill="both", expand=True)
+
+    def save_guest(self):
+        name = self.name_entry.get()
+        khr_str = self.khr_entry.get()
+        usd_str = self.usd_entry.get()
+        addr = self.addr_entry.get()
+
+        if not name:
+            messagebox.showwarning("Warning", "សូមបញ្ចូលឈ្មោះភ្ញៀវ! (Name required)")
+            return
+
+        # Validation: Convert empty strings to 0
+        try:
+            khr = int(khr_str) if khr_str else 0
+            usd = float(usd_str) if usd_str else 0.0
+        except ValueError:
+            messagebox.showerror("Error", "សូមបញ្ចូលចំនួនទឹកប្រាក់ឲ្យបានត្រឹមត្រូវ! (Numbers only)")
+            return
+
+        self.db.add_guest(name, khr, usd, addr)
+        self.clear_inputs()
+        self.refresh_data()
+
+    def clear_inputs(self):
+        self.name_entry.delete(0, "end")
+        self.khr_entry.delete(0, "end")
+        self.usd_entry.delete(0, "end")
+        self.addr_entry.delete(0, "end")
+        self.name_entry.focus()
+
+    def refresh_data(self):
+        # Clear Table
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+        
+        # Load Guests
+        rows = self.db.fetch_all()
+        for row in rows:
+            # Format numbers with commas (e.g. 10,000)
+            formatted_row = (row[0], row[1], f"{row[2]:,}", f"{row[3]:,.2f}", row[4])
+            self.tree.insert("", "end", values=formatted_row)
+
+        # Update Stats
+        count, total_khr, total_usd = self.db.fetch_summary()
+        summary_text = f"សរុបភ្ញៀវ: {count or 0} នាក់   |   ប្រាក់រៀល: {total_khr or 0:,.0f} ៛   |   ប្រាក់ដុល្លារ: ${total_usd or 0:,.2f}"
+        self.stats_label.configure(text=summary_text)
+
+    def export_excel(self):
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            df = pd.read_sql_query("SELECT * FROM guests", conn)
+            filename = "Wedding_List_Export.xlsx"
+            df.to_excel(filename, index=False)
+            messagebox.showinfo("Success", f"ទិន្នន័យត្រូវបានរក្សាទុកក្នុង \n{filename}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Export failed: {e}")
 
 if __name__ == "__main__":
     app = WeddingApp()
