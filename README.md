@@ -35,9 +35,7 @@ The application automatically detects and uses available Khmer fonts on your sys
 If Khmer text displays as boxes or question marks, install Khmer fonts:
 
 1. **Download Khmer OS Fonts:**
-   - Visit: https://www.khmeros.info/downloads
-   - Or download from: https://sourceforge.net/projects/khmer/files/
-
+   ///
 2. **Install Fonts:**
    - Extract the downloaded ZIP file
    - Right-click on `.ttf` font files
