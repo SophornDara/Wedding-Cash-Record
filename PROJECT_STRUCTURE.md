@@ -75,8 +75,11 @@ User interface components.
 ## Running the Application
 
 Simply run the main entry point:
+1. active venv 
+2. run main.py
 
 ```bash
+venv\Scripts\activate
 python main.py
 ```
 
