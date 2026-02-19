@@ -14,10 +14,13 @@ DB_FILE = os.getenv("DB_NAME", "wedding_data.db")
 APP_TITLE = os.getenv("APP_TITLE", "Wedding Manager")
 FONT_SIZE = int(os.getenv("FONT_SIZE", 12))
 
-# Font name - will be initialized by the main application
-FONT_NAME = "Khmer OS Siemreap"  # Default, can be overridden
-
 # --- SYSTEM ENCODING FIX (CRITICAL FOR WINDOWS) ---
 # Force Python to treat all output as UTF-8 to prevent "???" in terminal
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
+
+# Font name - detect available Khmer font
+# Import here to avoid circular dependencies
+from utils.font_utils import get_khmer_font
+FONT_NAME = get_khmer_font()
+print(f"[Config] Detected Font: {FONT_NAME}")

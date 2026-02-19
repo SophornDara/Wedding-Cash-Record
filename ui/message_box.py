@@ -2,7 +2,7 @@
 
 import customtkinter as ctk
 from tkinter import Toplevel
-from config import FONT_NAME
+import config
 
 
 class KhmerMessageBox:
@@ -34,7 +34,7 @@ class KhmerMessageBox:
         label = ctk.CTkLabel(
             dialog, 
             text=message,
-            font=(FONT_NAME, 14),
+            font=(config.FONT_NAME, 14),
             wraplength=350
         )
         label.pack(pady=30, padx=20)
@@ -47,7 +47,7 @@ class KhmerMessageBox:
         ok_btn = ctk.CTkButton(
             dialog,
             text="យល់ព្រម (OK)",
-            font=(FONT_NAME, 12),
+            font=(config.FONT_NAME, 12),
             fg_color=btn_color,
             width=120,
             height=35,

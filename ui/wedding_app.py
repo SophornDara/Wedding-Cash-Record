@@ -1,9 +1,10 @@
 """Main application window for Wedding Manager."""
 
 import sqlite3
+import tkinter as tk
 import customtkinter as ctk
 import pandas as pd
-from config import APP_TITLE, FONT_NAME, FONT_SIZE, DB_FILE
+import config
 from database import WeddingDB
 from utils import khmer_to_arabic
 from .message_box import KhmerMessageBox
@@ -17,18 +18,20 @@ class WeddingApp(ctk.CTk):
         super().__init__()
         self.db = WeddingDB()
 
-        self.title(APP_TITLE)
+        self.title(config.APP_TITLE)
         self.geometry("1200x700")
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
-        # Fonts
-        self.khmer_font = (FONT_NAME, FONT_SIZE)
-        self.header_font = (FONT_NAME, 24, "bold")
+        # Fonts - use config module for dynamic font detection
+        self.khmer_font = (config.FONT_NAME, config.FONT_SIZE)
+        self.header_font = (config.FONT_NAME, 24, "bold")
+        
+        print(f"[WeddingApp] Using Font: {config.FONT_NAME}, Size: {config.FONT_SIZE}")
         
         # Global Font Setting for CTk
         try:
-            ctk.FontManager.load_font(FONT_NAME)
+            ctk.FontManager.load_font(config.FONT_NAME)
         except Exception:
             pass 
 
@@ -74,13 +77,13 @@ class WeddingApp(ctk.CTk):
         export_btn.pack(padx=20, pady=5, fill="x")
 
     def create_input(self, placeholder):
-        """Create an input field with label.
+        """Create an input field with label using native tkinter Text widget.
         
         Args:
             placeholder (str): Label text for the input field
             
         Returns:
-            CTkTextbox: The created text input widget
+            tk.Text: The created text input widget
         """
         frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         frame.pack(padx=20, pady=5, fill="x")
@@ -88,33 +91,38 @@ class WeddingApp(ctk.CTk):
         label = ctk.CTkLabel(
             frame, 
             text=placeholder, 
-            font=(FONT_NAME, 11), 
+            font=(config.FONT_NAME, 11), 
             text_color="gray60", 
             anchor="w"
         )
         label.pack(fill="x")
         
-        # FIX: Explicit Font Object for Input
-        input_font = ctk.CTkFont(family=FONT_NAME, size=FONT_SIZE)
-        
-        textbox = ctk.CTkTextbox(
-            frame, 
-            font=input_font, 
-            height=40, 
-            wrap="none", 
-            activate_scrollbars=False
+        # Use native tkinter Text widget for proper Khmer support
+        textbox = tk.Text(
+            frame,
+            font=(config.FONT_NAME, config.FONT_SIZE),
+            height=2,
+            width=30,
+            wrap="none",
+            bg="#343638",  # Dark background to match CTk theme
+            fg="white",    # White text
+            insertbackground="white",  # White cursor
+            relief="flat",
+            padx=10,
+            pady=8
         )
         textbox.pack(fill="x", pady=(2, 5))
         
+        # Disable return key creating new lines
         textbox.bind("<Return>", lambda e: "break")
         
         return textbox
     
     def get_input_text(self, textbox):
-        """Get text from a textbox widget.
+        """Get text from a tkinter Text widget.
         
         Args:
-            textbox (CTkTextbox): The textbox to read from
+            textbox (tk.Text): The textbox to read from
             
         Returns:
             str: The trimmed text content
@@ -122,10 +130,10 @@ class WeddingApp(ctk.CTk):
         return textbox.get("1.0", "end-1c").strip()
     
     def clear_textbox(self, textbox):
-        """Clear content from a textbox widget.
+        """Clear content from a tkinter Text widget.
         
         Args:
-            textbox (CTkTextbox): The textbox to clear
+            textbox (tk.Text): The textbox to clear
         """
         textbox.delete("1.0", "end")
 
@@ -137,7 +145,7 @@ class WeddingApp(ctk.CTk):
         self.stats_label = ctk.CTkLabel(
             self.main_frame, 
             text="", 
-            font=(FONT_NAME, 18, "bold")
+            font=(config.FONT_NAME, 18, "bold")
         )
         self.stats_label.pack(pady=10)
 
@@ -153,7 +161,7 @@ class WeddingApp(ctk.CTk):
             label = ctk.CTkLabel(
                 header_frame, 
                 text=header, 
-                font=(FONT_NAME, 13, "bold"),
+                font=(config.FONT_NAME, 13, "bold"),
                 text_color="black",
                 width=width
             )
@@ -187,7 +195,7 @@ class WeddingApp(ctk.CTk):
             label = ctk.CTkLabel(
                 row_frame,
                 text=text,
-                font=(FONT_NAME, 12),
+                font=(config.FONT_NAME, 12),
                 text_color="black",
                 width=width,
                 anchor="center" if i in [0, 2, 3] else "w"
@@ -270,7 +278,7 @@ class WeddingApp(ctk.CTk):
     def export_excel(self):
         """Export guest data to Excel file."""
         try:
-            conn = sqlite3.connect(DB_FILE)
+            conn = sqlite3.connect(config.DB_FILE)
             df = pd.read_sql_query("SELECT * FROM guests", conn)
             filename = "Wedding_List_Export.xlsx"
             df.to_excel(filename, index=False, engine='openpyxl')
