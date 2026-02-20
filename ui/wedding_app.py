@@ -70,8 +70,8 @@ class WeddingApp(ctk.CTk):
             text="ទាញយក Excel", 
             font=self.khmer_font, 
             height=40, 
-            fg_color="#3498db", 
-            hover_color="#2980b9", 
+            fg_color="#F54927", 
+            hover_color="#F54927", 
             command=self.export_excel
         )
         export_btn.pack(padx=20, pady=5, fill="x")
