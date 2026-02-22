@@ -276,12 +276,25 @@ class WeddingApp(ctk.CTk):
         self.stats_label.configure(text=summary_text)
 
     def export_excel(self):
-        """Export guest data to Excel file."""
+        """Export guest data to Excel file with total sum."""
         try:
             conn = sqlite3.connect(config.DB_FILE)
             df = pd.read_sql_query("SELECT * FROM guests", conn)
+            
+            # Add a total row
+            total_row = pd.DataFrame({
+                'id': ['សរុប / TOTAL'],
+                'name': [''],
+                'khr': [df['khr'].sum()],
+                'usd': [df['usd'].sum()],
+                'address': ['']
+            })
+            
+            # Concatenate the original data with the total row
+            df_with_total = pd.concat([df, total_row], ignore_index=True)
+            
             filename = "Wedding_List_Export.xlsx"
-            df.to_excel(filename, index=False, engine='openpyxl')
+            df_with_total.to_excel(filename, index=False, engine='openpyxl')
             conn.close()
             KhmerMessageBox.show_message(
                 self,
