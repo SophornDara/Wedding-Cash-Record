@@ -154,7 +154,7 @@ class WeddingApp(ctk.CTk):
         header_frame.pack(fill="x", pady=(10, 0))
         header_frame.pack_propagate(False)
         
-        headers = ["ល.រ", "ឈ្មោះ", "ប្រាក់រៀល", "ប្រាក់ដុល្លារ", "អាសយដ្ឋាន"]
+        headers = ["ល.រ", "ឈ្មោះ", "ប្រាក់រៀល", "ប្រាក់ដុល្លារ$", "អាសយដ្ឋាន address"]
         widths = [60, 200, 150, 150, 200]
         
         for i, (header, width) in enumerate(zip(headers, widths)):
