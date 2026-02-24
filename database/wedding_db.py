@@ -68,6 +68,43 @@ class WeddingDB:
         self.cursor.execute("SELECT COUNT(id), SUM(khr), SUM(usd) FROM guests")
         return self.cursor.fetchone()
 
+    def get_guest_by_id(self, guest_id):
+        """Get a single guest by ID.
+        
+        Args:
+            guest_id (int): The guest's database ID
+            
+        Returns:
+            tuple: Guest record (id, name, khr, usd, address) or None
+        """
+        self.cursor.execute("SELECT id, name, khr, usd, address FROM guests WHERE id = ?", (guest_id,))
+        return self.cursor.fetchone()
+
+    def update_guest(self, guest_id, name, khr, usd, address):
+        """Update an existing guest in the database.
+        
+        Args:
+            guest_id (int): The guest's database ID
+            name (str): Guest name
+            khr (int): Amount in Khmer Riel
+            usd (float): Amount in US Dollars
+            address (str): Guest address
+        """
+        self.cursor.execute(
+            "UPDATE guests SET name = ?, khr = ?, usd = ?, address = ? WHERE id = ?",
+            (str(name), int(khr), float(usd), str(address), guest_id)
+        )
+        self.conn.commit()
+
+    def delete_guest(self, guest_id):
+        """Delete a guest from the database.
+        
+        Args:
+            guest_id (int): The guest's database ID
+        """
+        self.cursor.execute("DELETE FROM guests WHERE id = ?", (guest_id,))
+        self.conn.commit()
+
     def close(self):
         """Close database connection."""
         self.conn.close()
