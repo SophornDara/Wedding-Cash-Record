@@ -149,7 +149,7 @@ class WeddingApp(ctk.CTk):
             padx=12,
             pady=10
         )
-        textbox.pack(fill="x", pady=(0, 0))
+        textbox.pack(fill="x", pady=(2, 5))
         
         # Disable return key creating new lines
         textbox.bind("<Return>", lambda e: "break")
