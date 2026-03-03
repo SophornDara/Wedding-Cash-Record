@@ -115,7 +115,6 @@ class WeddingApp(ctk.CTk):
 
     def create_input(self, parent, placeholder):
         """Create an input field with label using native tkinter Text widget.
-        
         Args:
             parent: Parent widget
             placeholder (str): Label text for the input field
