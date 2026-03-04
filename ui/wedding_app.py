@@ -560,6 +560,6 @@ class WeddingApp(ctk.CTk):
             KhmerMessageBox.show_message(
                 self,
                 "កំហុស / Error",
-                f"ការនាំចេញបានបរាជ័យ\nExport failed:\n{str(e)}",
+                f"បរាជ័យ\nExport failed:\n{str(e)}",
                 "error"
             )
